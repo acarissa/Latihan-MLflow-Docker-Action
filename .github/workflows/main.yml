@@ -48,26 +48,43 @@ jobs:
       #     echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
       #     echo "Latest run_id: $RUN_ID"
 
-      # Get latest run_id
+      # # Get latest run_id
       # - name: Get latest MLflow run_id
       #   run: |
       #     RUN_ID=$(ls -td mlruns/*/*/ | grep -v 'meta.yaml' | head -n 1 | cut -d'/' -f3)
       #     echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
       #     echo "Latest run_id: $RUN_ID"
 
+      # # Get latest run_id
+      # - name: Get latest MLflow run_id
+      #   run: |
+      #     RUN_ID=$(python -c "
+      #     import mlflow
+      #     mlflow.set_tracking_uri('mlruns')
+      #     client = mlflow.tracking.MlflowClient()
+      #     runs = client.search_runs(experiment_ids=['0'], order_by=['start_time DESC'], max_results=1)
+      #     print(runs[0].info.run_id)
+      #     ")
+      #     echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+      #     echo "Latest run_id: $RUN_ID"
+          
       # Get latest run_id
       - name: Get latest MLflow run_id
         run: |
-          RUN_ID=$(python -c "
           import mlflow
-          mlflow.set_tracking_uri('mlruns')
-          client = mlflow.tracking.MlflowClient()
-          runs = client.search_runs(experiment_ids=['0'], order_by=['start_time DESC'], max_results=1)
-          print(runs[0].info.run_id)
-          ")
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-          echo "Latest run_id: $RUN_ID"
+          import os
+          runs = mlflow.search_runs(experiment_ids=["0"], max_results=1, order_by=["attributes.start_time DESC"])
           
+          if not runs.empty:
+              run_id = runs.iloc[0]["run_id"]
+              with open(os.environ['GITHUB_ENV'], 'a') as f:
+                  f.write(f"RUN_ID={run_id}\n")
+              print(f"Successfully found Run ID: {run_id}")
+          else:
+              print("No runs found in MLflow tracking!")
+              exit(1)
+        shell: python
+        
       # Build Docker Model
       - name: Build Docker Model
         run: |
